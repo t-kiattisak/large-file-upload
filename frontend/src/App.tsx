@@ -1,12 +1,10 @@
-import "./App.css"
-import Uploader from "./components/Uploader"
+import { Uploader } from "./features/upload"
 
 function App() {
   return (
-    <>
-      <h1>React + Elysia + UpChunk</h1>
+    <div className='min-h-screen w-full bg-gray-100 flex items-center justify-center p-4'>
       <Uploader />
-    </>
+    </div>
   )
 }
 
