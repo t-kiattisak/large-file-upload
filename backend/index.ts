@@ -1,13 +1,19 @@
-import { Elysia } from "elysia"
-import { cors } from "@elysiajs/cors"
+import { serve } from "@hono/node-server"
+import { Hono } from "hono"
+import { cors } from "hono/cors"
 import { uploadController } from "./src/features/upload/upload.controller"
 
-const app = new Elysia()
-  .use(cors())
-  .use(uploadController)
-  .get("/", () => "Upload Server Running")
-  .listen(3000)
+const app = new Hono()
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-)
+app.use("/*", cors())
+app.route("/upload", uploadController)
+
+app.get("/", (c) => c.text("Upload Server Running"))
+
+const port = 3000
+console.log(`Server is running on port ${port}`)
+
+serve({
+  fetch: app.fetch,
+  port,
+})

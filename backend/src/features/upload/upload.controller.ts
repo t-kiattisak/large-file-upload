@@ -1,118 +1,90 @@
-import { Elysia, t } from "elysia"
+import { Hono } from "hono"
 import { UploadService } from "./upload.service"
-
 import { S3UploadService } from "./s3-upload.service"
 
-export const uploadController = new Elysia({ prefix: "/upload" })
-  .decorate("uploadService", new UploadService())
-  .decorate("s3UploadService", new S3UploadService())
-  .put(
-    "/",
-    async ({ request, headers, uploadService, set }) => {
-      const contentRange = headers["content-range"]
-      const fileName = headers["x-file-name"]
-      const uploadId = headers["x-upload-id"]
+const uploadService = new UploadService()
+const s3UploadService = new S3UploadService()
 
-      if (!contentRange) {
-        set.status = 400
-        return "Missing Content-Range header"
-      }
-      if (!fileName) {
-        set.status = 400
-        return "Missing x-file-name header"
-      }
-      if (!uploadId) {
-        set.status = 400
-        return "Missing x-upload-id header"
-      }
+export const uploadController = new Hono()
 
-      const match = contentRange.match(/bytes (\d+)-(\d+)\/(\d+)/)
-      if (!match) {
-        set.status = 400
-        return "Invalid Content-Range format"
-      }
+uploadController.put("/", async (c) => {
+  const contentRange = c.req.header("content-range")
+  const fileName = c.req.header("x-file-name")
+  const uploadId = c.req.header("x-upload-id")
 
-      const start = parseInt(match[1]!)
-      const end = parseInt(match[2]!)
-      const total = parseInt(match[3]!)
+  if (!contentRange) {
+    return c.text("Missing Content-Range header", 400)
+  }
+  if (!fileName) {
+    return c.text("Missing x-file-name header", 400)
+  }
+  if (!uploadId) {
+    return c.text("Missing x-upload-id header", 400)
+  }
 
-      try {
-        const arrayBuffer = await request.arrayBuffer()
-        await uploadService.handleChunk(
-          fileName,
-          uploadId,
-          start,
-          end,
-          total,
-          arrayBuffer,
-        )
-        return { success: true }
-      } catch (err) {
-        console.error(err)
-        set.status = 500
-        return "Internal Server Error"
-      }
-    },
-    {
-      headers: t.Object({
-        "content-range": t.String(),
-        "x-file-name": t.String(),
-        "x-upload-id": t.String(),
-      }),
-    },
-  )
-  .put(
-    "/s3",
-    async ({ request, headers, s3UploadService, set }) => {
-      const contentRange = headers["content-range"]
-      const fileName = headers["x-file-name"]
-      const uploadId = headers["x-upload-id"]
+  const match = contentRange.match(/bytes (\d+)-(\d+)\/(\d+)/)
+  if (!match) {
+    return c.text("Invalid Content-Range format", 400)
+  }
 
-      if (!contentRange) {
-        set.status = 400
-        return "Missing Content-Range header"
-      }
-      if (!fileName) {
-        set.status = 400
-        return "Missing x-file-name header"
-      }
-      if (!uploadId) {
-        set.status = 400
-        return "Missing x-upload-id header"
-      }
+  const start = parseInt(match[1]!)
+  const end = parseInt(match[2]!)
+  const total = parseInt(match[3]!)
 
-      const match = contentRange.match(/bytes (\d+)-(\d+)\/(\d+)/)
-      if (!match) {
-        set.status = 400
-        return "Invalid Content-Range format"
-      }
+  try {
+    const arrayBuffer = await c.req.arrayBuffer()
+    await uploadService.handleChunk(
+      fileName,
+      uploadId,
+      start,
+      end,
+      total,
+      arrayBuffer,
+    )
+    return c.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return c.text("Internal Server Error", 500)
+  }
+})
 
-      const start = parseInt(match[1]!)
-      const end = parseInt(match[2]!)
-      const total = parseInt(match[3]!)
+uploadController.put("/s3", async (c) => {
+  const contentRange = c.req.header("content-range")
+  const fileName = c.req.header("x-file-name")
+  const uploadId = c.req.header("x-upload-id")
 
-      try {
-        const arrayBuffer = await request.arrayBuffer()
-        await s3UploadService.handleChunk(
-          fileName,
-          uploadId,
-          start,
-          end,
-          total,
-          arrayBuffer,
-        )
-        return { success: true }
-      } catch (err) {
-        console.error(err)
-        set.status = 500
-        return "Internal Server Error"
-      }
-    },
-    {
-      headers: t.Object({
-        "content-range": t.String(),
-        "x-file-name": t.String(),
-        "x-upload-id": t.String(),
-      }),
-    },
-  )
+  if (!contentRange) {
+    return c.text("Missing Content-Range header", 400)
+  }
+  if (!fileName) {
+    return c.text("Missing x-file-name header", 400)
+  }
+  if (!uploadId) {
+    return c.text("Missing x-upload-id header", 400)
+  }
+
+  const match = contentRange.match(/bytes (\d+)-(\d+)\/(\d+)/)
+  if (!match) {
+    return c.text("Invalid Content-Range format", 400)
+  }
+
+  const start = parseInt(match[1]!)
+  const end = parseInt(match[2]!)
+  const total = parseInt(match[3]!)
+
+  try {
+    const arrayBuffer = await c.req.arrayBuffer()
+    await s3UploadService.handleChunk(
+      fileName,
+      uploadId,
+      start,
+      end,
+      total,
+      arrayBuffer,
+    )
+    return c.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return c.text("Internal Server Error", 500)
+  }
+})
